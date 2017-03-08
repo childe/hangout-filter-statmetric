@@ -102,27 +102,20 @@ public class StatMetric extends BaseFilter {
         if (metricToEmit.size() == 0) {
             return null;
         }
-
-        ArrayList FlatMetrics = new ArrayList<>();
+        List<Map<String, Object>> events = new ArrayList();
         this.metricToEmit.forEach((url, stat) -> {
-            FlatMetrics.add(new HashMap() {{
+            HashMap emitEvent = new HashMap() {{
                 this.put(keyField, url);
                 this.put("stat", stat);
-            }});
-
+                this.put("@timestamp", lastEmitTime);
+            }};
+            this.postProcess(emitEvent, true);
+            events.add(emitEvent);
         });
-        HashMap emitEvent = new HashMap() {{
-            this.put("@timestamp", lastEmitTime);
-            this.put("metrics", FlatMetrics);
-        }};
-        this.postProcess(emitEvent, true);
 
         this.metricToEmit.clear();
         this.lastEmitTime = System.currentTimeMillis();
 
-        List<Map<String, Object>> events = new ArrayList() {{
-            this.add(emitEvent);
-        }};
         return events;
     }
 }

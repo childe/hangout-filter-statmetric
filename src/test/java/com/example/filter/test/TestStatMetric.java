@@ -85,14 +85,14 @@ public class TestStatMetric {
         events.add(event);
         process(filter, events);
 
-        System.out.println(events.get(1));
+        Assert.assertEquals(events.size(), 3);
 
-        Assert.assertEquals(events.size(), 2);
+        Assert.assertNull(((Map) events.get(0)).get("stat"));
 
-        List<Map> metrics = (List) events.get(1).get("metrics");
-        Assert.assertEquals(metrics.size(), 2);
-
-        for (Map metric : metrics) {
+        for (Map metric : events) {
+            if (metric.get("stat") == null){
+                continue;
+            }
             String url = (String) metric.get("url");
             if (url.equalsIgnoreCase("/")) {
                 Map stat = (Map) metric.get("stat");
@@ -101,9 +101,8 @@ public class TestStatMetric {
                 Assert.assertEquals(stat.get("mean"), 0.2f);
                 Assert.assertEquals(stat.get("max"), 0.4f);
                 Assert.assertEquals(stat.get("sum"), 0.6f);
-            } else {
+            } else if (url.equalsIgnoreCase("/hello")) {
                 Map stat = (Map) metric.get("stat");
-                Map metric2 = (Map) events.get(1).get("/hello");
                 Assert.assertEquals(stat.get("count"), 1.0f);
                 Assert.assertEquals(stat.get("min"), 0.1f);
                 Assert.assertEquals(stat.get("mean"), 0.1f);
@@ -111,7 +110,5 @@ public class TestStatMetric {
                 Assert.assertEquals(stat.get("sum"), 0.1f);
             }
         }
-
-
     }
 }

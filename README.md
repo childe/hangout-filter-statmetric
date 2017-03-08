@@ -26,7 +26,7 @@ this.metric.put(keyValue, stat);
 
 显然这个 `this.metric` 是一个独立的event, 它不能附加到每一条日志事件中去. 所以还需要重写另外一个函数, 来处理这种特殊的情况.
 
-这个函数是用来输入额外的日志事件, 可以输出多条, 所以返回了一个List, 比如有多个Url, 可以每个输出一条. 我这里写的代码如下, 只输出了一条, 对this.metric中的内容做了打平处理.
+这个函数是用来输入额外的日志事件, 可以输出多条, 所以返回是一个List, 比如有多个Url, 可以每个输出一条.
 
 **注意 在prepare里, 需要设置一个成员变量 `this.processExtraEventsFunc = true`;**
 
@@ -36,50 +36,41 @@ public List<Map<String, Object>> filterExtraEvents(Map event) {
     if (metricToEmit.size() == 0) {
         return null;
     }
-
-    ArrayList FlatMetrics = new ArrayList<>();
+    List<Map<String, Object>> events = new ArrayList();
     this.metricToEmit.forEach((url, stat) -> {
-        FlatMetrics.add(new HashMap() {{
+        HashMap emitEvent = new HashMap() {{
             this.put(keyField, url);
             this.put("stat", stat);
-        }});
-
+            this.put("@timestamp", lastEmitTime);
+        }};
+        this.postProcess(emitEvent, true);
+        events.add(emitEvent);
     });
-    HashMap emitEvent = new HashMap() {{
-        this.put("@timestamp", lastEmitTime);
-        this.put("metrics", FlatMetrics);
-    }};
-    this.postProcess(emitEvent, true);
 
     this.metricToEmit.clear();
     this.lastEmitTime = System.currentTimeMillis();
 
-    List<Map<String, Object>> events = new ArrayList() {{
-        this.add(emitEvent);
-    }};
     return events;
 }
 ```
 
 来看下效果吧:
 
-    / 0.1
-    {@timestamp=2017-03-08T12:12:37.424+08:00, time=0.1, message=/ 0.1, url=/}
-    / 0.2
-    {@timestamp=2017-03-08T12:12:39.062+08:00, time=0.2, message=/ 0.2, url=/}
-    /hello 0.31
-    {@timestamp=2017-03-08T12:12:44.110+08:00, time=0.31, message=/hello 0.31, url=/hello}
-    /hello 0.14
-    {@timestamp=2017-03-08T12:12:48.573+08:00, time=0.14, message=/hello 0.14, url=/hello}
-    / 3
-    {@timestamp=2017-03-08T12:12:50.278+08:00, time=3, message=/ 3, url=/}
+    2017-03-08 16:08:40,528 INFO com.ctrip.ops.sysdev.core.Main main build input Stdin done
     / 1
-    {@timestamp=2017-03-08T12:12:51.541+08:00, time=1, message=/ 1, url=/}
-    /hello 0.13
-    {@timestamp=2017-03-08T12:12:54.909+08:00, time=0.13, message=/hello 0.13, url=/hello}
-    / 1
-    {@timestamp=2017-03-08T12:14:16.857+08:00, time=1, message=/ 1, url=/}
-    {@timestamp=1488946354979, metrics=[{stat={min=0.1, max=3.0, mean=1.075, count=4.0, sum=4.3}, url=/}, {stat={min=0.13, max=0.31, mean=0.19333333, count=3.0, sum=0.58}, url=/hello}], statmetric=true}
+    {@timestamp=2017-03-08T16:08:41.569+08:00, time=1, message=/ 1, url=/}
+    / 2
+    {@timestamp=2017-03-08T16:08:43.102+08:00, time=2, message=/ 2, url=/}
+    hello 1
+    {@timestamp=2017-03-08T16:08:45.262+08:00, time=1, message=hello 1, url=hello}
+    / 3.5
+    {@timestamp=2017-03-08T16:08:48.854+08:00, time=3.5, message=/ 3.5, url=/}
+    hello 2
+    {@timestamp=2017-03-08T16:08:51.958+08:00, time=2, message=hello 2, url=hello}
+    gogogo 1
+    {@timestamp=2017-03-08T16:10:02.001+08:00, time=1, message=gogogo 1, url=gogogo}
+    {stat={min=1.0, max=2.0, mean=1.5, count=2.0, sum=3.0}, @timestamp=1488960520522, url=hello, statmetric=true}
+    {stat={min=1.0, max=3.5, mean=2.1666667, count=3.0, sum=6.5}, @timestamp=1488960520522, url=/, statmetric=true}
 
 **注意**
 
